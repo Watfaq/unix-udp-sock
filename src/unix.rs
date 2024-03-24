@@ -1074,6 +1074,7 @@ fn decode_recv(
     let mut ifindex = 0;
     #[allow(unused_mut)] // only mutable on Linux
     let mut stride = len;
+    let mut orig_dst = None;
 
     let cmsg_iter = unsafe { cmsg::Iter::new(hdr) };
     for cmsg in cmsg_iter {
@@ -1118,6 +1119,13 @@ fn decode_recv(
             (libc::SOL_UDP, libc::UDP_GRO) => unsafe {
                 stride = cmsg::decode::<libc::c_int>(cmsg) as usize;
             },
+            #[cfg(target_os = "linux")]
+            (libc::SOL_IP, libc::IP_ORIGDSTADDR) => unsafe {
+                let addr_in = cmsg::decode::<libc::sockaddr_in>(cmsg);
+                let addr = Ipv4Addr::from(addr_in.sin_addr.s_addr.to_ne_bytes());
+                let port = u16::from_be(addr_in.sin_port);
+                orig_dst = Some(SocketAddr::V4(SocketAddrV4::new(addr, port)));
+            },
             _ => {}
         }
     }
@@ -1153,6 +1161,7 @@ fn decode_recv(
         dst_ip,
         dst_local_ip,
         ifindex,
+        orig_dst,
     }
 }
 

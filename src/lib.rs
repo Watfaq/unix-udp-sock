@@ -76,6 +76,7 @@ pub struct RecvMeta {
     pub dst_local_ip: Option<IpAddr>,
     /// interface index that datagram was received on
     pub ifindex: u32,
+    pub orig_dst: Option<SocketAddr>,
 }
 
 impl Default for RecvMeta {
@@ -89,6 +90,7 @@ impl Default for RecvMeta {
             dst_ip: None,
             dst_local_ip: None,
             ifindex: 0,
+            orig_dst: None,
         }
     }
 }
