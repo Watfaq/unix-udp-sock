@@ -955,7 +955,7 @@ pub fn udp_state() -> UdpState {
     }
 }
 
-const CMSG_LEN: usize = 88;
+const CMSG_LEN: usize = 512;
 
 fn prepare_msg<B: AsPtr<u8>>(
     transmit: &Transmit<B>,
@@ -1125,6 +1125,17 @@ fn decode_recv(
                 let addr = Ipv4Addr::from(addr_in.sin_addr.s_addr.to_ne_bytes());
                 let port = u16::from_be(addr_in.sin_port);
                 orig_dst = Some(SocketAddr::V4(SocketAddrV4::new(addr, port)));
+            },
+            #[cfg(target_os = "linux")]
+            (libc::SOL_IPV6, libc::IPV6_ORIGDSTADDR) => unsafe {
+                let addr_in = cmsg::decode::<libc::sockaddr_in6>(cmsg);
+                let addr = Ipv6Addr::from(addr_in.sin6_addr.s6_addr);
+                let port = u16::from_be(addr_in.sin6_port);
+                let flowinfo = addr_in.sin6_flowinfo;
+                let scope_id = addr_in.sin6_scope_id;
+                orig_dst = Some(SocketAddr::V6(SocketAddrV6::new(
+                    addr, port, flowinfo, scope_id,
+                )));
             },
             _ => {}
         }
